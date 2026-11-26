@@ -15,7 +15,7 @@ Homepass dihitung dari jumlah port semua ODP.
 
 ## Sinkron otomatis dengan Google Drive
 
-Alur `sinkron-data.yml` berjalan sekitar tiap 30 menit, tiap ada push ke `main`, dan bisa dijalankan manual. Isinya: mengunduh `Summary_ODP.xlsx` dari Google Drive, membuat `data.json`, lalu menayangkan situs ke GitHub Pages. Halaman yang sedang terbuka memeriksa `data.json` baru tiap 5 menit.
+Alur `sinkron-data.yml` berjalan sekitar tiap 5 menit (jadwal tercepat yang diizinkan GitHub), tiap ada push ke `main`, dan bisa dijalankan manual. Isinya: mengunduh `Summary_ODP.xlsx` dari Google Drive, membuat `data.json`, lalu menayangkan situs ke GitHub Pages. Halaman yang sedang terbuka memeriksa `data.json` baru tiap 1 menit.
 
 Pemasangan satu kali:
 
