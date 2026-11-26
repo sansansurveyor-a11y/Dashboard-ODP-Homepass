@@ -1,0 +1,85 @@
+name: Sinkron data dan deploy situs
+
+# Mengambil Summary_ODP.xlsx dari Google Drive, membuat data.json, lalu menayangkan situs.
+# Syarat: file di Drive dibagikan dengan akses "Siapa saja yang memiliki link" (Viewer),
+# dan Settings > Pages > Source = "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  DRIVE_FILE_ID: 10GLUWZHBJZD_yE8HSzi3j4sMcaoYOEn2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Siapkan folder situs
+        run: |
+          mkdir -p _site
+          cp index.html data.json _site/
+
+      - name: Ambil Summary_ODP.xlsx dari Google Drive
+        id: fetch
+        continue-on-error: true
+        run: |
+          set -eu
+          ok=0
+          for url in \
+            "https://drive.google.com/uc?export=download&id=${DRIVE_FILE_ID}" \
+            "https://drive.usercontent.google.com/download?id=${DRIVE_FILE_ID}&export=download&confirm=t"; do
+            rm -f Summary_ODP.xlsx headers.txt
+            curl -fsSL --retry 3 -D headers.txt -o Summary_ODP.xlsx "$url" || continue
+            if [ "$(head -c 2 Summary_ODP.xlsx)" = "PK" ]; then ok=1; break; fi
+          done
+          if [ "$ok" != 1 ]; then
+            echo "::error::Gagal mengunduh file dari Google Drive. Pastikan akses file adalah 'Siapa saja yang memiliki link'."
+            exit 1
+          fi
+          modified=$(grep -i '^last-modified:' headers.txt | tail -n 1 | cut -d' ' -f2- | tr -d '\r' || true)
+          iso=""
+          if [ -n "$modified" ]; then iso=$(date -u -d "$modified" +%Y-%m-%dT%H:%M:%S.000Z 2>/dev/null || true); fi
+          if [ -z "$iso" ]; then iso=$(date -u +%Y-%m-%dT%H:%M:%S.000Z); fi
+          echo "modified=$iso" >> "$GITHUB_OUTPUT"
+
+      - name: Buat data.json dari file Excel
+        if: steps.fetch.outcome == 'success'
+        run: |
+          pip install --quiet pandas openpyxl
+          python build_data.py Summary_ODP.xlsx _site/data.json --modified "${{ steps.fetch.outputs.modified }}"
+
+      - name: Peringatan bila sinkron gagal
+        if: steps.fetch.outcome == 'failure'
+        run: echo "::warning::Sinkron dari Google Drive gagal. Situs memakai data.json terakhir di repositori."
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Tayangkan situs
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -369,7 +369,7 @@ function renderMeta(){
   bits.push('<span>File: <b>'+esc(m.file)+'</b></span>');
   if(m.sheet) bits.push('<span>Sheet: <b>'+esc(m.sheet)+'</b></span>');
   bits.push('<span>Baris data: <b class="num">'+fmt(m.odpRows)+'</b></span>');
-  bits.push('<span>'+(origin==='drive'?'Sinkron dari Google Drive: <b>'+esc(m.at||'')+'</b>':(STANDALONE?'Data dari data.json':'Salinan bawaan halaman'))+(m.driveModified?' (file Drive diubah '+esc(tfmt(m.driveModified))+')':'')+'</span>');
+  bits.push('<span>'+(origin==='drive'?'Sinkron dari Google Drive: <b>'+esc(m.at||'')+'</b>':(STANDALONE?'Data dari data.json':'Salinan bawaan halaman'))+(m.driveModified?' (sumber diperbarui '+esc(tfmt(m.driveModified))+')':'')+'</span>');
   if(m.dup) bits.push('<span>Duplikat ODP ID diabaikan: <b class="num">'+fmt(m.dup)+'</b></span>');
   if(m.invalid) bits.push('<span>Baris port kosong/tidak valid dilewati: <b class="num">'+fmt(m.invalid)+'</b></span>');
   $('#meta').innerHTML = bits.join('');
@@ -635,8 +635,7 @@ async function checkDrive(quiet){
 
 /* ---------- mode situs mandiri (di luar Claude): baca data.json ---------- */
 function startStandalone(){
-  $('#dropzone h2').textContent = 'Data dari data.json';
-  $('#dropzone .up-text p').textContent = 'Dashboard membaca file data.json yang ada di situs ini. Untuk memperbarui angka, buat ulang data.json dari file Excel terbaru dan unggah ke repositori (lihat README).';
+  $('#dropzone .up-text p').textContent = 'Dashboard membaca data.json yang dibuat otomatis dari file Summary_ODP.xlsx di Google Drive. Situs mengambil ulang file itu dari Drive sekitar tiap 30 menit, dan halaman yang sedang terbuka memeriksa data baru tiap 5 menit.';
   DL = {save: async ({filename,data:blob})=>{
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = filename;
@@ -645,12 +644,17 @@ function startStandalone(){
     return {status:'saved'};
   }};
   $('#btn-dl').hidden = false;
-  fetch('data.json',{cache:'no-cache'}).then(r=>{ if(!r.ok) throw new Error('http'); return r.json(); }).then(o=>{
+  let last = (data.meta && data.meta.driveModified) || '';
+  const load = first => fetch('data.json',{cache:'no-cache'}).then(r=>{ if(!r.ok) throw new Error('http'); return r.json(); }).then(o=>{
     if(!o || !o.meta || !Array.isArray(o.rows) || !o.rows.length || o.rows[0].length!==6) throw new Error('format');
-    data = o; origin = 'base'; prepare(data);
-    notice = {kind:'ok',html:'Data dimuat dari <b>data.json</b>: '+fmt(o.meta.odpRows)+' ODP'+(o.meta.driveModified?' (file sumber diubah '+esc(tfmt(o.meta.driveModified))+')':'')+'.'};
+    const mod = o.meta.driveModified || '';
+    if(!first && mod===last && o.meta.odpRows===data.meta.odpRows) return;
+    last = mod; data = o; origin = 'base'; prepare(data);
+    notice = {kind:'ok',html:(first?'Data dimuat dari <b>data.json</b>: ':'Data diperbarui dari <b>data.json</b>: ')+fmt(o.meta.odpRows)+' ODP'+(mod?' (sumber diperbarui '+esc(tfmt(mod))+')':'')+'.'};
     render();
   }).catch(()=>{});
+  load(true);
+  setInterval(()=>{ if(!document.hidden) load(false); },300000);
 }
 
 /* ---------- download excel ---------- */

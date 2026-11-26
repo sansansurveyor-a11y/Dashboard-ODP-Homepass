@@ -4,6 +4,8 @@
 Pemakaian:
     python build_data.py Summary_ODP.xlsx            # menulis data.json
     python build_data.py Summary_ODP.xlsx hasil.json # nama keluaran lain
+    python build_data.py Summary_ODP.xlsx data.json --modified 2026-11-26T07:51:22.000Z
+        # --modified: waktu file sumber diubah (UTC); bawaannya waktu ubah file lokal
 
 Kebutuhan: Python 3 dengan pandas dan openpyxl (pip install pandas openpyxl).
 Aturan hitung sama dengan dashboard: satu baris ODP = satu ODP, ODP ID kembar
@@ -42,10 +44,16 @@ def text(series):
 
 
 def main():
-    if len(sys.argv) < 2:
+    args = sys.argv[1:]
+    modified_arg = None
+    if "--modified" in args:
+        k = args.index("--modified")
+        modified_arg = args[k + 1] if k + 1 < len(args) else None
+        del args[k : k + 2]
+    if not args:
         sys.exit(__doc__)
-    src = sys.argv[1]
-    out = sys.argv[2] if len(sys.argv) > 2 else "data.json"
+    src = args[0]
+    out = args[1] if len(args) > 1 else "data.json"
     sheet, df = find_table(src)
 
     df["port"] = pd.to_numeric(df["port"].astype(str).str.replace(",", ".", regex=False), errors="coerce")
@@ -73,7 +81,11 @@ def main():
         p = float(port)
         rows.append([seg, reg, sta, ven, int(p) if p.is_integer() else p, int(n)])
 
-    modified = datetime.datetime.fromtimestamp(os.path.getmtime(src), datetime.timezone.utc)
+    if modified_arg:
+        modified_str = modified_arg
+    else:
+        m = datetime.datetime.fromtimestamp(os.path.getmtime(src), datetime.timezone.utc)
+        modified_str = m.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     meta = {
         "file": os.path.basename(src),
         "sheet": sheet,
@@ -81,7 +93,7 @@ def main():
         "dup": dup,
         "invalid": invalid,
         "at": None,
-        "driveModified": modified.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "driveModified": modified_str,
     }
     with open(out, "w", encoding="utf-8") as f:
         json.dump({"meta": meta, "rows": rows}, f, ensure_ascii=False, separators=(",", ":"))
