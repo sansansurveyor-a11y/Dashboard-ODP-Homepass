@@ -9,7 +9,8 @@ Pemakaian:
 
 Kebutuhan: Python 3 dengan pandas dan openpyxl (pip install pandas openpyxl).
 Aturan hitung sama dengan dashboard: satu baris ODP = satu ODP, ODP ID kembar
-dilewati, baris dengan port kosong atau nol dilewati, homepass = jumlah port.
+tetap dihitung (hanya dicatat jumlahnya), baris dengan port kosong atau nol
+dilewati, homepass = jumlah port.
 """
 import datetime
 import json
@@ -66,8 +67,7 @@ def main():
     if id_col:
         ids = df[id_col].astype("string").str.strip()
         is_dup = ids.notna() & (ids != "") & ids.duplicated()
-        dup = int(is_dup.sum())
-        df = df[~is_dup]
+        dup = int(is_dup.sum())  # hanya dicatat, baris kembar tetap dihitung
 
     for col in ("region", "stasiun"):
         df[col] = text(df[col]) if col in df.columns else UNK

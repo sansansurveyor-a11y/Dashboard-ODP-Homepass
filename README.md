@@ -42,7 +42,7 @@ Syarat dan batasan:
 
 3. Commit dan push `data.json` yang baru. Jika memakai **Deploy from a branch** (bukan GitHub Actions), situs memakai data baru begitu halaman dimuat ulang.
 
-`build_data.py` memakai aturan hitung yang sama dengan dashboard: satu baris ODP dihitung satu ODP, ODP ID kembar dan baris dengan port kosong dilewati.
+`build_data.py` memakai aturan hitung yang sama dengan dashboard: satu baris ODP dihitung satu ODP, ODP ID kembar tetap dihitung, sedangkan baris dengan port kosong dilewati.
 
 ## Catatan
 
