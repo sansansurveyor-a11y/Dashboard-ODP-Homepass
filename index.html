@@ -375,7 +375,6 @@ function renderMeta(){
   if(m.sheet) bits.push('<span>Sheet: <b>'+esc(m.sheet)+'</b></span>');
   bits.push('<span>Baris data: <b class="num">'+fmt(m.odpRows)+'</b></span>');
   bits.push('<span>'+(origin==='drive'?'Sinkron dari Google Drive: <b>'+esc(m.at||'')+'</b>':(STANDALONE?'Data dari data.json':'Salinan bawaan halaman'))+(m.driveModified?' (sumber diperbarui '+esc(tfmt(m.driveModified))+')':'')+'</span>');
-  if(m.dup) bits.push('<span>ODP ID kembar (tetap dihitung): <b class="num">'+fmt(m.dup)+'</b></span>');
   if(m.invalid) bits.push('<span>Baris port kosong/tidak valid dilewati: <b class="num">'+fmt(m.invalid)+'</b></span>');
   $('#meta').innerHTML = bits.join('');
   const st = $('#status');
