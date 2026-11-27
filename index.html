@@ -639,7 +639,7 @@ async function checkDrive(quiet){
 
 /* ---------- mode situs mandiri (di luar Claude): baca data.json ---------- */
 function startStandalone(){
-  $('#dropzone .up-text p').textContent = 'Dashboard membaca data.json yang dibuat otomatis dari file Summary_ODP.xlsx di Google Drive. Situs mengambil ulang file itu dari Drive sekitar tiap 5 menit (batas tercepat GitHub), dan halaman yang sedang terbuka memeriksa data baru tiap 1 menit.';
+  $('#dropzone .up-main').style.display = 'none';
   DL = {save: async ({filename,data:blob})=>{
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = filename;
