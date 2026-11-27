@@ -88,6 +88,8 @@ h1{font-size:clamp(26px,4vw,36px);font-weight:700;letter-spacing:-.02em;line-hei
 .field label{font-size:12px;color:var(--ink2);font-weight:500}
 .field select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:200px;max-width:100%}
 .filters .grow{flex:1}
+.field input{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:220px;max-width:100%;font:inherit;color:inherit}
+.field select,.field input{height:38px}
 .dl{margin-left:auto;display:inline-flex;align-items:center;gap:8px}
 .dl[hidden]{display:none}
 .seg-ctl{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
@@ -237,6 +239,7 @@ td .sw{display:inline-block;vertical-align:-1px;margin-right:8px}
   <section class="filters" aria-label="Filter">
     <div class="field"><label for="f-region">Region</label><select id="f-region"></select></div>
     <div class="field"><label for="f-vendor">Vendor</label><select id="f-vendor"></select></div>
+    <div class="field"><label for="f-q">Cari vendor</label><input id="f-q" type="search" placeholder="Ketik nama vendor" autocomplete="off" spellcheck="false"></div>
     <button class="btn" id="btn-clear" type="button" hidden>Hapus filter</button>
     <button class="btn dl" id="btn-dl" type="button" hidden title="Unduh data yang sedang tampil sebagai file Excel (mengikuti filter yang aktif)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>Unduh Excel</button>
   </section>
@@ -305,7 +308,8 @@ const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 
 let data = null, origin = 'base', STANDALONE = false;
 const tfmt = iso => { const d=new Date(iso); return isNaN(d)?String(iso):d.toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); };
-const F = {region:'',vendor:''};
+const F = {region:'',vendor:'',q:''};
+const vq = v => !F.q || String(v).toLowerCase().includes(F.q);
 let M = 'hp';
 let segColor = new Map(), segOrder = [], regionList = [], vendorList = [];
 let selSeg = '', DET = null;
@@ -350,6 +354,7 @@ function compute(){
   for(const r of data.rows){
     if(F.region && r[1]!==F.region) continue;
     if(F.vendor && r[3]!==F.vendor) continue;
+    if(!vq(r[3])) continue;
     const n=r[5], h=r[4]*r[5];
     C.odp+=n; C.hp+=h; C.stas.add(r[2]); C.vend.add(r[3]);
     let g = C.seg.get(r[0]); if(!g){g={odp:0,hp:0,b:[0,0,0,0]};C.seg.set(r[0],g);}
@@ -388,8 +393,8 @@ function renderMeta(){
 function renderFilters(){
   const r = $('#f-region'), v = $('#f-vendor');
   r.innerHTML = '<option value="">Semua region</option>'+regionList.map(x=>'<option'+(x===F.region?' selected':'')+' value="'+esc(x)+'">'+esc(x)+'</option>').join('');
-  v.innerHTML = '<option value="">Semua vendor</option>'+vendorList.map(x=>'<option'+(x===F.vendor?' selected':'')+' value="'+esc(x)+'">'+esc(x)+'</option>').join('');
-  $('#btn-clear').hidden = !(F.region||F.vendor);
+  v.innerHTML = '<option value="">'+(F.q?'Semua vendor yang cocok':'Semua vendor')+'</option>'+vendorList.filter(x=>x===F.vendor||vq(x)).map(x=>'<option'+(x===F.vendor?' selected':'')+' value="'+esc(x)+'">'+esc(x)+'</option>').join('');
+  $('#btn-clear').hidden = !(F.region||F.vendor||F.q);
 }
 
 function renderKPI(C){
@@ -660,7 +665,7 @@ function startStandalone(){
 /* ---------- download excel ---------- */
 let DL = null;
 function buildWorkbook(){
-  const rows = data.rows.filter(r=>(!F.region||r[1]===F.region)&&(!F.vendor||r[3]===F.vendor));
+  const rows = data.rows.filter(r=>(!F.region||r[1]===F.region)&&(!F.vendor||r[3]===F.vendor)&&vq(r[3]));
   const segT = new Map(), segR = new Map();
   let odp=0, hp=0;
   rows.forEach(r=>{
@@ -679,6 +684,7 @@ function buildWorkbook(){
     ['Diekspor', new Date().toLocaleString('id-ID')],
     ['Filter region', F.region||'Semua region'],
     ['Filter vendor', F.vendor||'Semua vendor'],
+    ['Cari vendor', F.q||'-'],
     ['Total ODP', odp],
     ['Total homepass', hp],[],
     ['Catatan','Homepass = jumlah port semua ODP. Sheet Data Agregat berisi jumlah ODP untuk tiap kombinasi segment, region, stasiun, vendor, dan ukuran port.']
@@ -706,7 +712,7 @@ async function downloadExcel(){
     if(typeof XLSX==='undefined') throw {code:'noxlsx'};
     const out = XLSX.write(buildWorkbook(),{bookType:'xlsx',type:'array'});
     const d = new Date(), p = n=>String(n).padStart(2,'0');
-    const name = 'odp-homepass_'+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+((F.region||F.vendor)?'_filter':'')+'.xlsx';
+    const name = 'odp-homepass_'+d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+((F.region||F.vendor||F.q)?'_filter':'')+'.xlsx';
     await DL.save({filename:name,data:new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})});
     notice = {kind:'ok',html:'File Excel <b>'+esc(name)+'</b> siap disimpan.'};
   }catch(e){
@@ -726,7 +732,8 @@ $('#f-region').addEventListener('change',e=>{F.region=e.target.value;render();})
 $('#f-vendor').addEventListener('change',e=>{F.vendor=e.target.value;render();});
 $('#btn-dl').addEventListener('click',downloadExcel);
 $('#btn-sync').addEventListener('click',syncDrive);
-$('#btn-clear').addEventListener('click',()=>{F.region='';F.vendor='';render();});
+$('#f-q').addEventListener('input',e=>{F.q=e.target.value.trim().toLowerCase();if(F.vendor&&!vq(F.vendor))F.vendor='';render();});
+$('#btn-clear').addEventListener('click',()=>{F.region='';F.vendor='';F.q='';$('#f-q').value='';render();});
 $('#m-hp').addEventListener('click',()=>{M='hp';render();});
 $('#m-odp').addEventListener('click',()=>{M='odp';render();});
 
@@ -739,6 +746,7 @@ function computeDetail(){
     if(r[0]!==selSeg) continue;
     if(F.region && r[1]!==F.region) continue;
     if(F.vendor && r[3]!==F.vendor) continue;
+    if(!vq(r[3])) continue;
     const n=r[5], h=r[4]*n;
     D.odp+=n; D.hp+=h; D.stas.add(r[2]); D.vend.add(r[3]);
     bump(D.reg,r[1],n,h); bump(D.port,r[4],n,h);
